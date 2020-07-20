@@ -32,13 +32,16 @@ ui <- fluidPage(theme = shinytheme("cerulean"),
             uiOutput("varselect2"),
             uiOutput("varselect3"),
             hr(),
+            selectInput("plotting",label="Plot",choices = c("none","box","scatter")),
+            uiOutput("varselect4"),
+            hr(),
             actionButton("go", "Go")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
            tableOutput("lm"),
-           textOutput("text")
+           plotOutput("plot")
            
         )
     )
@@ -57,17 +60,22 @@ server <- function(input, output) {
     
     output$varselect1 <- renderUI({
         cols <- names(df())
-        selectInput("dv", "DV",choices=cols)  
+        selectInput("dv", "Dependent variable",choices=cols)  
         
     })
     output$varselect2 <- renderUI({
         cols <- names(df())
-        selectInput("iv1", "IV 1",choices=cols)  
+        selectInput("iv1", "Independent variable 1",choices=cols)  
         
     })
     output$varselect3 <- renderUI({
         cols <- names(df())
-        selectInput("iv2", "IV 2",choices=c("none",cols)) 
+        selectInput("iv2", "Independent variable 2",choices=c("none",cols)) 
+        
+    })
+    output$varselect4 <- renderUI({
+        cols <- names(df())
+        selectInput("facet", "Facet",choices=c("none",cols)) 
         
     })
     mod  <-  eventReactive(input$go, {
@@ -88,14 +96,49 @@ server <- function(input, output) {
         
         })
     
+    plot <- eventReactive(input$go, {
+        
+        if(input$plotting == "none"){}
+        
+        else if(input$plotting == "scatter") {
+            
+            df() %>% 
+                ggplot(aes_string(input$iv1,input$dv)) +
+                theme_minimal(base_size=14) +
+                geom_point(alpha= .7) +
+                
+                if(input$facet != "none") {
+                    facet_wrap(~get(input$facet))
+                } else{NULL}
+            
+        }
+        
+        else if(input$plotting == "box") {
+            df() %>% 
+                ggplot(aes_string(input$iv1,input$dv,group=input$iv1)) +
+                theme_minimal(base_size=14) +
+                geom_point(alpha= .2) +
+                geom_boxplot(alpha=0,outlier.shape = NA) +
+                if(input$facet != "none") {
+                    facet_wrap(~get(input$facet))
+                } else{NULL}
+        }
+  
+    })
+    
     output$lm <- renderTable({
         mod() %>% 
             tidy() %>% 
             mutate_if(is.numeric,round,3) %>%
             gt()
     })
-
+    
+    output$plot <- renderPlot({
+        plot()
+        
     })
+
+    
 }
 
 # Run the application 
